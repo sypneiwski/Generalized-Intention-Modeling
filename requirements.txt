@@ -1,0 +1,9 @@
+gym==0.21.0
+torch
+torchvision
+wandb[media]
+torchrl==0.10.0
+vmas
+tqdm
+numpy
+gymnasium

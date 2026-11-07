@@ -1,0 +1,12 @@
+name: mixer_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - cmake<3.27
+  - boost
+  - sdl2
+  - sdl2_image
+  - sdl2_ttf
+  - sdl2_gfx

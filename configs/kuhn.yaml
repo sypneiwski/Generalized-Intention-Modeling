@@ -1,0 +1,76 @@
+device: "cpu"
+
+trainer:
+  scenario:
+    name: "Kuhn"
+    max_steps: 100
+    continuous_actions: False
+    categorical_actions: False
+    num_good_agents: 1
+    num_adversaries: 1
+
+  n_iters: 401
+  n_steps_per_iter: 5000
+  evaluate_every: 10
+  num_test_envs: 10000
+
+algorithm:
+  n_epochs: 5
+  minibatch_size: 10
+  learning_rate: 0.0001
+  max_grad_norm: 0.5
+
+  clip_epsilon: 0.2
+  gamma: 0.99
+  lmbda: 0.95
+  entropy_coefficient: 0.01
+  
+  share_parameters:
+    actor: false
+    critic: false
+  centralised:
+    actor: false
+    critic: true
+
+mixer: "lnnd"
+test_on_unseen: True
+
+intention_modeling:
+  minibatch_size: 10
+  n_epochs: 5
+  max_grad_norm: 0.5
+  embedding_dim: 8
+  learning_rate: 0.0005
+  hidden_dim: 128
+
+  model_configs:
+    RTG:
+      horizon: 2
+      infonce_dim: 5
+      infonce_tau: 0.2
+      no_eval: True
+    
+    FUTURE_OBS:
+      horizon: 1
+
+omg:
+  lr_vae: 0.0005
+  lr_omg: 0.0005
+  omg_cvae_alpha: 0.01
+  horizon: 3
+  max_grad_norm: 0.5
+  minibatch_size: 20
+  n_epochs: 5
+  embedding_dim: 8
+  omg_vae_alpha: 0.001
+  subgoal_mode: "max"
+
+meliba:
+  lr_vae: 0.001
+  max_grad_norm: 0.5
+  minibatch_size: 8
+  m_dim: 2
+  mt_dim: 2
+  kl_weight: 0.05
+  n_epochs: 5
+

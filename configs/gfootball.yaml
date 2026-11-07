@@ -1,0 +1,73 @@
+device: "cpu"
+
+trainer:
+  scenario:
+    name: "gfootball_academy_run_to_score_with_keeper_and_defenders"
+    max_steps: 200
+    continuous_actions: False
+    num_good_agents: 1
+    num_adversaries: 6
+
+  n_iters: 2501
+  n_steps_per_iter: 8000
+  evaluate_every: 50
+  num_test_envs: 200
+
+algorithm:
+  n_epochs: 5
+  minibatch_size: 5
+  learning_rate: 0.0003
+  max_grad_norm: 0.64
+
+  clip_epsilon: 0.2
+  gamma: 0.993
+  lmbda: 0.95
+  entropy_coefficient: 0.003
+
+  share_parameters:
+    actor: true
+    critic: true
+  centralised:
+    actor: false
+    critic: false
+
+mixer: "lnnd"
+
+intention_modeling:
+  minibatch_size: 10
+  n_epochs: 5
+  max_grad_norm: 0.5
+  embedding_dim: 32
+  learning_rate: 0.0003
+  hidden_dim: 128
+
+  model_configs:
+    RTG:
+      horizon: 10
+      infonce_dim: 5
+      infonce_tau: 0.2
+      no_eval: False
+
+    FUTURE_OBS:
+      horizon: 1
+
+omg:
+  lr_vae: 0.0005
+  lr_omg: 0.0005
+  omg_cvae_alpha: 0.001
+  horizon: 5
+  max_grad_norm: 0.5
+  minibatch_size: 20
+  n_epochs: 5
+  embedding_dim: 32
+  omg_vae_alpha: 0.001
+  subgoal_mode: "max"
+
+meliba:
+  lr_vae: 0.005
+  max_grad_norm: 0.5
+  minibatch_size: 20
+  m_dim: 8
+  mt_dim: 8
+  kl_weight: 0.05
+  n_epochs: 5

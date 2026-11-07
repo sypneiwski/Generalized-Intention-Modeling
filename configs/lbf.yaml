@@ -1,0 +1,74 @@
+device: "cpu"
+
+trainer:
+  scenario:
+    name: "Foraging-9x9-2p-5f-v3"
+    max_steps: 50
+    continuous_actions: False
+    num_good_agents: 1
+    num_adversaries: 1
+
+  n_iters: 3341
+  n_steps_per_iter: 6000
+  evaluate_every: 20
+  num_test_envs: 200
+
+algorithm:
+  n_epochs: 5
+  minibatch_size: 10
+  learning_rate: 0.0003
+  max_grad_norm: 0.5
+
+  clip_epsilon: 0.2
+  gamma: 0.99
+  lmbda: 0.95
+  entropy_coefficient: 0.001
+  
+  share_parameters:
+    actor: true
+    critic: true
+  centralised:
+    actor: false
+    critic: true
+
+mixer: "lnnd"
+
+intention_modeling:
+  minibatch_size: 20
+  n_epochs: 5
+  max_grad_norm: 0.5
+  embedding_dim: 20
+  learning_rate: 0.0003
+  hidden_dim: 128
+
+  model_configs:
+    RTG:
+      horizon: 2
+      infonce_dim: 5
+      infonce_tau: 0.2
+      no_eval: False
+    
+    FUTURE_OBS:
+      horizon: 1
+
+omg:
+  lr_vae: 0.0005
+  lr_omg: 0.0005
+  omg_cvae_alpha: 0.01
+  horizon: 3
+  max_grad_norm: 0.5
+  minibatch_size: 20
+  n_epochs: 5
+  embedding_dim: 20
+  omg_vae_alpha: 0.001
+  subgoal_mode: "max"
+
+meliba:
+  lr_vae: 0.001
+  max_grad_norm: 0.5
+  minibatch_size: 20
+  m_dim: 5
+  mt_dim: 5
+  kl_weight: 0.01
+  n_epochs: 5
+

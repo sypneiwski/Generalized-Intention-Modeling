@@ -1,0 +1,134 @@
+diff --git a/third_party/gfootball_engine/ai.cpp b/third_party/gfootball_engine/ai.cpp
+index dfd73e0..2515ebd 100644
+--- a/third_party/gfootball_engine/ai.cpp
++++ b/third_party/gfootball_engine/ai.cpp
+@@ -138,6 +138,8 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
+       .def("get_frame", &GameEnv_Python::get_frame_python)
+       .def("perform_action", &GameEnv_Python::action)
+       .def("sticky_action_state", &GameEnv_Python::sticky_action_state)
++      .def("get_last_action", &GameEnv_Python::get_last_action)
++      .def("get_current_function_type", &GameEnv_Python::get_current_function_type)
+       .def("step", &GameEnv_Python::step_python)
+       .def("get_state", &GameEnv_Python::get_state_python)
+       .def("set_state", &GameEnv_Python::set_state_python)
+diff --git a/third_party/gfootball_engine/src/game_env.cpp b/third_party/gfootball_engine/src/game_env.cpp
+index 8718dbe..a800242 100644
+--- a/third_party/gfootball_engine/src/game_env.cpp
++++ b/third_party/gfootball_engine/src/game_env.cpp
+@@ -340,6 +340,34 @@ void GameEnv::step() {
+     DO_VALIDATION;
+     GetTracker()->setDisabled(true);
+     context->step++;
++    // Capture each controller's action before non-sticky buttons are cleared.
++    auto& controllers = GetControllers();
++    last_actions_.assign(controllers.size(), static_cast<int>(game_idle));
++    for (int i = 0; i < static_cast<int>(controllers.size()); i++) {
++      auto ctrl = static_cast<AIControlledKeyboard*>(controllers[i]);
++      if (ctrl->GetButton(e_ButtonFunction_Shot))
++        last_actions_[i] = game_shot;
++      else if (ctrl->GetButton(e_ButtonFunction_LongPass))
++        last_actions_[i] = game_long_pass;
++      else if (ctrl->GetButton(e_ButtonFunction_HighPass))
++        last_actions_[i] = game_high_pass;
++      else if (ctrl->GetButton(e_ButtonFunction_ShortPass))
++        last_actions_[i] = game_short_pass;
++      else if (ctrl->GetButton(e_ButtonFunction_Sliding))
++        last_actions_[i] = game_sliding;
++      else {
++        Vector3 dir = ctrl->GetOriginalDirection();
++        if      (dir == Vector3(-1,  0, 0)) last_actions_[i] = game_left;
++        else if (dir == Vector3(-1,  1, 0)) last_actions_[i] = game_top_left;
++        else if (dir == Vector3( 0,  1, 0)) last_actions_[i] = game_top;
++        else if (dir == Vector3( 1,  1, 0)) last_actions_[i] = game_top_right;
++        else if (dir == Vector3( 1,  0, 0)) last_actions_[i] = game_right;
++        else if (dir == Vector3( 1, -1, 0)) last_actions_[i] = game_bottom_right;
++        else if (dir == Vector3( 0, -1, 0)) last_actions_[i] = game_bottom;
++        else if (dir == Vector3(-1, -1, 0)) last_actions_[i] = game_bottom_left;
++        else                                last_actions_[i] = game_idle;
++      }
++    }
+     for (auto controller : GetControllers()) {
+       DO_VALIDATION;
+       controller->ResetNotSticky();
+@@ -348,6 +376,60 @@ void GameEnv::step() {
+   }
+ }
+ 
++int GameEnv::get_last_action(bool left_team, int player) {
++  SetGame(this);
++  int controller_id = player + (left_team ? 0 : 11);
++  if (controller_id < 0 ||
++      controller_id >= static_cast<int>(last_actions_.size()))
++    return static_cast<int>(game_idle);
++  return last_actions_[controller_id];
++}
++
++static Action FunctionTypeToAction(e_FunctionType ft, const Vector3 &dir,
++                                   float velocity) {
++  switch (ft) {
++    case e_FunctionType_Shot:      return game_shot;
++    case e_FunctionType_ShortPass: return game_short_pass;
++    case e_FunctionType_LongPass:  return game_long_pass;
++    case e_FunctionType_HighPass:  return game_high_pass;
++    case e_FunctionType_Sliding:   return game_sliding;
++    default: break;
++  }
++  // Use the controller's desired direction/velocity (not physics movement) so
++  // the result reflects what the AI intended rather than the animation state.
++  if (velocity <= idleVelocity) return game_idle;
++  float vx = dir.coords[0];
++  float vy = dir.coords[1];
++  float mag = sqrtf(vx * vx + vy * vy);
++  if (mag < 0.01f) return game_idle;
++  vx /= mag;
++  vy /= mag;
++  int sx = (vx >  0.5f) ? 1 : (vx < -0.5f ? -1 : 0);
++  int sy = (vy >  0.5f) ? 1 : (vy < -0.5f ? -1 : 0);
++  if (sx == -1 && sy ==  0) return game_left;
++  if (sx == -1 && sy ==  1) return game_top_left;
++  if (sx ==  0 && sy ==  1) return game_top;
++  if (sx ==  1 && sy ==  1) return game_top_right;
++  if (sx ==  1 && sy ==  0) return game_right;
++  if (sx ==  1 && sy == -1) return game_bottom_right;
++  if (sx ==  0 && sy == -1) return game_bottom;
++  if (sx == -1 && sy == -1) return game_bottom_left;
++  return game_idle;
++}
++
++int GameEnv::get_current_function_type(bool left_team, int player) {
++  SetGame(this);
++  auto &players = context->gameTask->GetMatch()
++                      ->GetTeam(left_team ? 0 : 1)->GetAllPlayers();
++  if (player < 0 || player >= static_cast<int>(players.size()))
++    return static_cast<int>(game_idle);
++  PlayerBase *p = players[player];
++  IController *ctrl = p->GetController();
++  return static_cast<int>(
++      FunctionTypeToAction(p->GetCurrentFunctionType(),
++                           ctrl->GetDirection(), ctrl->GetFloatVelocity()));
++}
++
+ void GameEnv::ProcessState(EnvState* state) {
+   state->process(this->state);
+   state->process(waiting_for_game_count);
+diff --git a/third_party/gfootball_engine/src/game_env.hpp b/third_party/gfootball_engine/src/game_env.hpp
+index c6aa8fd..7bd31ae 100644
+--- a/third_party/gfootball_engine/src/game_env.hpp
++++ b/third_party/gfootball_engine/src/game_env.hpp
+@@ -54,6 +54,8 @@ struct GameEnv {
+ 
+   // Executes the action inside the game.
+   bool sticky_action_state(int action, bool left_team, int player);
++  int get_last_action(bool left_team, int player);
++  int get_current_function_type(bool left_team, int player);
+   void action(int action, bool left_team, int player);
+   void reset(ScenarioConfig& game_config, bool init_animation);
+   void render(bool swap_buffer = true);
+@@ -72,6 +74,7 @@ struct GameEnv {
+   bool disable_graphics_ = false;
+   int last_step_rendered_frames_ = 1;
+  public:
++  std::vector<int> last_actions_;  // action per controller, captured before ResetNotSticky
+   ScenarioConfig scenario_config;
+   GameConfig game_config;
+   GameContext* context = nullptr;
